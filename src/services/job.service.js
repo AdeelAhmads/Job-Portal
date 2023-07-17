@@ -6,117 +6,132 @@ import config from "../config/index.js";
 import passwordHash from 'password-hash';
 import mongoose from "mongoose";
 export const JobService = {
-    getAll: async () => {
-        return JobModel.find();
+    getAll: async (token) => {
+        const bearerToken = token.split(" ")[1];
+        const userInfo = jwt.verify(bearerToken, config.env.jwtSecret);
+        if (userInfo.userType == 'creator') {
+            return JobModel.find();
+        }
+        else {
+            return "unauthorized";
+        }
+
     },
 
-    get: async (id) => {
-        return await JobModel.findById(id);
+    get: async (id, token) => {
+        const bearerToken = token.split(" ")[1];
+        const userInfo = jwt.verify(bearerToken, config.env.jwtSecret);
+        if (userInfo.id == id) {
+            return await JobModel.findById(id);
+        }
+        else {
+            return "unauthorized";
+        }
     },
     getJobs: async (id, token) => {
 
+
+
         const bearerToken = token.split(" ")[1];
-
-
         const userInfo = jwt.verify(bearerToken, config.env.jwtSecret);
-        // decoded payload will be available in req.user
-        console.log(userInfo);
-        console.log(userInfo.userType);
 
+        if (id == userInfo.id) {
 
-        const creatorUsers = [];
+            const creatorUsers = [];
 
-        const users = await JobModel.find();
-        // console.log(user);
-        for (const user of users) {
-            if (user.user_id == id) {
-                creatorUsers.push(user);
+            const users = await JobModel.find();
+            for (const user of users) {
+                if (user.user_id == userInfo.id) {
+                    creatorUsers.push(user);
+                }
+
             }
 
-        }
+            if (userInfo.userType == "creator") {
+                return creatorUsers;
+            }
+            else {
+                console.log('true');
+                return users;
 
-        if (userInfo.userType == "creator") {
-            return creatorUsers;
-        }
-        else {
-            console.log('true');
-            return users;
-
+            }
+        } else {
+            return "unauthorized";
         }
     },
 
-    add: async (body) => {
-        const user = await UserModel.find({ _id: body.user_id });
-        console.log(user);
-        // console.log(user[0].userType);
-        if (user[0].userType == "creator") {
+    getApplications: async (id, token) => {
+
+        const bearerToken = token.split(" ")[1];
+        const userInfo = jwt.verify(bearerToken, config.env.jwtSecret);
+
+        if (id == userInfo.id) {
+
+            const data = await JobModel.aggregate([
+                {
+                    $match: {
+                        _id: new mongoose.Types.ObjectId(id),
+                    },
+                },
+                {
+                    $lookup: {
+                        from: "jobapplieds",
+                        localField: "_id",
+                        foreignField: "job_id",
+                        as: "applications_record",
+                    },
+                },
+            ])
+            return data;
+        } else {
+            return "unauthorized";
+        }
+    },
+
+    add: async (body, token) => {
+        const bearerToken = token.split(" ")[1];
+        const userInfo = jwt.verify(bearerToken, config.env.jwtSecret);
+        if (userInfo.userType == "creator") {
             return await JobModel.create(body);
         }
 
     },
 
-    delete: async (id) => {
-        const jobs = await JobModel.find()
-        for (const job of jobs) {
+    delete: async (id, token) => {
 
-            if (job.id === id) {
-                return await JobModel.findByIdAndDelete(id);
-            }
+        const bearerToken = token.split(" ")[1];
+        const userInfo = jwt.verify(bearerToken, config.env.jwtSecret);
 
+        if (userInfo.id == id) {
+            return await JobModel.findByIdAndDelete(id);
         }
-
+        else {
+            return "unauthorized";
+        }
     },
-    update: async (id, body) => {
+    update: async (id, body, token) => {
 
-        const jobs = await JobModel.find()
-        for (const job of jobs) {
+        const bearerToken = token.split(" ")[1];
+        const userInfo = jwt.verify(bearerToken, config.env.jwtSecret);
 
-            if (job.id === id) {
-                const job = await JobModel.findById(id);
-                if (job) {
-                    if (body.jobTitle) {
-                        job.jobTitle = body.jobTitle;
-                    }
-                    if (body.location) {
-                        job.location = body.location;
-                    }
-                    if (body.offerSalary) {
-                        job.offerSalary = body.offerSalary;
-                    }
-                    await job.save();
-                    return job;
-
+        if (userInfo.id === id) {
+            const job = await JobModel.findById(id);
+            if (job) {
+                if (body.jobTitle) {
+                    job.jobTitle = body.jobTitle;
                 }
-
-
-
-            }
-
-        }
-
-
-
-    },
-
-    getjob: async (body) => {
-
-        const jobs = await JobModel.find()
-
-        for (const job of jobs) {
-
-            if (job.email === body.email) {
-                if (passwordHash.verify(body.password, job.password)) {
-
-                    const token = jwt.sign(body, config.env.jwtSecret);
-                    return { job, token }
-
+                if (body.location) {
+                    job.location = body.location;
                 }
+                if (body.offerSalary) {
+                    job.offerSalary = body.offerSalary;
+                }
+                await job.save();
+                return job;
 
             }
-
+        } else {
+            return "unauthorized";
         }
     },
-
-
-
 };

@@ -1,9 +1,19 @@
 import mongoose from "mongoose";
 
 const jobApplied = new mongoose.Schema({
-    appliedJobTitle: { type: String, required: true },
-    applied_By: { type: String, required: true },
-    job_id: { type: mongoose.Schema.Types.ObjectId,
+    applicant: {
+        type: String, required: true,
+    },
+    applied_at: {
+        type: Date,
+        default: Date.now()
+    },
+    user_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    },
+    job_id: {
+        type: mongoose.Schema.Types.ObjectId,
         ref: "Job"
     },
 });

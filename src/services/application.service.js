@@ -5,20 +5,25 @@ import jwt from "jsonwebtoken";
 import config from "../config/index.js";
 import passwordHash from 'password-hash';
 import mongoose from "mongoose";
-export const JobService = {
+export const JobApplicationService = {
     getAll: async () => {
         return JobAppliedModel.find();
     },
 
     get: async (id) => {
+
         return await JobAppliedModel.findById(id);
     },
 
-    add: async (body) => {
-        const user = await JobAppliedModel.find({ _id: body.user_id });
-        console.log(user);
-        // console.log(user[0].userType);
-        if (user[0].userType == "creator") {
+    add: async (body, token) => {
+
+        const bearerToken = token.split(" ")[1];
+        const userInfo = jwt.verify(bearerToken, config.env.jwtSecret);
+      
+        body.applicant = userInfo.name;
+        body.user_id = userInfo.id;
+
+        if (userInfo.userType == "applicant") {
             return await JobAppliedModel.create(body);
         }
 
@@ -36,30 +41,15 @@ export const JobService = {
 
     },
     update: async (id, body) => {
+        const job = await JobAppliedModel.findById(id);
+        if (job) {
 
-        const jobs = await JobAppliedModel.find()
-        for (const job of jobs) {
-
-            if (job.id === id) {
-                const job = await JobAppliedModel.findById(id);
-                if (job) {
-                    if (body.jobTitle) {
-                        job.jobTitle = body.jobTitle;
-                    }
-                    if (body.location) {
-                        job.location = body.location;
-                    }
-                    if (body.offerSalary) {
-                        job.offerSalary = body.offerSalary;
-                    }
-                    await job.save();
-                    return job;
-
-                }
-
-
-
+            if (body.job_id) {
+                job.job_id = body.job_id;
             }
+
+            await job.save();
+            return job;
 
         }
 
